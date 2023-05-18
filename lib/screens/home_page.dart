@@ -5,6 +5,8 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 import 'package:get/get.dart';
 import 'package:weather_app/controller/weather_controller.dart';
+import 'package:weather_app/model/city_model.dart';
+import 'package:weather_app/model/country_model.dart';
 
 import 'widgets/custom_text.dart';
 
@@ -13,10 +15,8 @@ class HomePage extends StatelessWidget {
   final WeatherController weatherController =
       Get.put<WeatherController>(WeatherController());
 
-
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       body: Obx(() {
         if (weatherController.gettingWeatherData.isFalse) {
@@ -28,12 +28,12 @@ class HomePage extends StatelessWidget {
               color: weatherController.currentWeatherData.value.main!.temp! < 30
                   ? Colors.green
                   : Colors.redAccent,
-              image: DecorationImage(
-                image: const AssetImage('images/location_background.jpg'),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                    Colors.white.withOpacity(0.8), BlendMode.dstATop),
-              ),
+              // image: DecorationImage(
+              //   image: const AssetImage('images/location_background.jpg'),
+              //   fit: BoxFit.cover,
+              //   colorFilter: ColorFilter.mode(
+              //       Colors.white.withOpacity(0.8), BlendMode.dstATop),
+              // ),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -52,47 +52,83 @@ class HomePage extends StatelessWidget {
                   SizedBox(
                     height: 0.04.sh,
                   ),
-                  InkWell(
-                    onTap: () {
-                      showCountryPicker(
-                        context: context,
-                        showPhoneCode: false,
-                        onSelect: (Country country) {
-                          weatherController.pickedCountry.value = country;
-                        },
+                  Autocomplete(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                    return weatherController.countries
+                        .where((CountryModel country) => country.name!
+                            .toLowerCase()
+                            .startsWith(textEditingValue.text.toLowerCase()))
+                        .toList();
+                  },
+                    initialValue: TextEditingValue(text: weatherController.pickedCountry.value.name.toString()),
+                    displayStringForOption: (CountryModel country) => country.name!,
+                    fieldViewBuilder: (
+                        BuildContext context,
+                        TextEditingController fieldTextEditingController,
+                        FocusNode fieldFocusNode,
+                        VoidCallback onFieldSubmitted
+                        ) {
+                      return Container(
+                        width: 0.9.sw,
+                        padding: const EdgeInsets.only(left: 10, right: 10),
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(
+                                color: Theme.of(context).backgroundColor,
+                                width: 1.5)),
+                        child: TextField(
+                          controller: fieldTextEditingController,
+                          focusNode: fieldFocusNode,
+                          style: const TextStyle(color: Colors.black),
+                          decoration: const InputDecoration(
+                            hintText: "United States",
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                            ),
+                            border: InputBorder.none,
+                          ),
+
+                          textCapitalization: TextCapitalization.sentences,
+                          keyboardType: TextInputType.text,
+                          // controller: weatherController.cityTextController,
+                        ),
                       );
                     },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomText(
-                          "Pick country",
-                          textColor: Colors.white,
-                          textOverflow: TextOverflow.visible,
-                          fontSize: 14.sp,
-                        ),
-                        SizedBox(
-                          height: 0.01.sh,
-                        ),
-                        Container(
-                          // height: 0.04.sh,
-                          width: 0.9.sw,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(5)),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: CustomText(
-                              weatherController.pickedCountry.value.displayNameNoCountryCode.toString(),
-                              textColor: Colors.black,
-                              textOverflow: TextOverflow.visible,
-                              fontSize: 18.sp,
+                    optionsViewBuilder: (
+                        BuildContext context,
+                        AutocompleteOnSelected<CountryModel> onSelected,
+                        Iterable<CountryModel> options
+                        ) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          child: Container(
+                            width: 0.9.sw,
+                            color: Colors.white,
+                            child: ListView.builder(
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final CountryModel option = options.elementAt(index);
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    onSelected(option);
+                                  },
+                                  child: ListTile(
+                                    title: Text(option.name!, style: const TextStyle(color: Colors.black)),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    },
+                    onSelected: (CountryModel country){
+                      weatherController.pickedCountry.value = country;
+                      weatherController.readCitiesJson(country.id!);
+
+                    },
                   ),
                   SizedBox(
                     height: 0.02.sh,
@@ -104,74 +140,119 @@ class HomePage extends StatelessWidget {
                       CustomText(
                         "What's the name of your city?",
                         fontSize: 14.sp,
-                        textColor:  Colors.white,
+                        textColor: Colors.white,
                         fontWeight: FontWeight.w500,
                       ),
                       SizedBox(
                         height: 0.01.sh,
                       ),
-                      Container(
-                        // height: 0.07.sh,
-                        width: 0.9.sw,
-                        padding: const EdgeInsets.only(left: 10, right: 10),
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(
-                                color: Theme.of(context).backgroundColor, width: 1.5)),
-                        child: TextFormField(
-                          decoration: const InputDecoration(
-                            hintText: "California",
-                            hintStyle: TextStyle(
-                              color: Colors.grey,
+                      Autocomplete(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          return weatherController.cities
+                              .where((City city) => city.name!
+                              .toLowerCase()
+                              .startsWith(textEditingValue.text.toLowerCase()))
+                              .toList();
+                        },
+                        initialValue: TextEditingValue(text: weatherController.pickedCity.value.name.toString()),
+                        displayStringForOption: (City city) => city.name!,
+                        fieldViewBuilder: (
+                            BuildContext context,
+                            TextEditingController fieldTextEditingController,
+                            FocusNode fieldFocusNode,
+                            VoidCallback onFieldSubmitted
+                            ) {
+                          return Container(
+                            width: 0.9.sw,
+                            padding: const EdgeInsets.only(left: 10, right: 10),
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(
+                                    color: Theme.of(context).backgroundColor,
+                                    width: 1.5)),
+                            child: TextField(
+                              controller: fieldTextEditingController,
+                              focusNode: fieldFocusNode,
+                              style: const TextStyle(color: Colors.black),
+                              decoration: const InputDecoration(
+                                hintText: "California",
+                                hintStyle: TextStyle(
+                                  color: Colors.grey,
+                                ),
+                                border: InputBorder.none,
+                              ),
+
+                              textCapitalization: TextCapitalization.sentences,
+                              keyboardType: TextInputType.text,
+                              // controller: weatherController.cityTextController,
                             ),
-                            border: InputBorder.none,
-                          ),
+                          );
+                        },
+                        optionsViewBuilder: (
+                            BuildContext context,
+                            AutocompleteOnSelected<City> onSelected,
+                            Iterable<City> options
+                            ) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              child: Container(
+                                width: 0.9.sw,
+                                color: Colors.white,
+                                child: ListView.builder(
+                                  itemCount: options.length,
+                                  itemBuilder: (BuildContext context, int index) {
+                                    final City option = options.elementAt(index);
 
-                          style: const TextStyle(
-                            color: Colors.black,
-                          ),
-                          textCapitalization: TextCapitalization.sentences,
-                          keyboardType: TextInputType.text,
-                          controller: weatherController.cityTextController,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Field is required';
-                            }
-
-                            return null;
-                          },
-                        ),
+                                    return GestureDetector(
+                                      onTap: () {
+                                        onSelected(option);
+                                      },
+                                      child: ListTile(
+                                        title: Text(option.name!, style: const TextStyle(color: Colors.black)),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        onSelected: (City city){
+                          weatherController.pickedCity.value = city;
+                        },
                       ),
                     ],
                   ),
                   SizedBox(
                     height: 0.02.sh,
                   ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: InkWell(
-                  onTap: () {
-                    if(weatherController.cityTextController.text.isNotEmpty) {
-                      weatherController.getCurrentWeather();
-                    }
-                  },
-                  child: Container(
-                    height: 0.05.sh,
-                    width: 0.3.sw,
-                    decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(10)),
-                    child: Center(
-                      child: CustomText(
-                        "Search",
-                        textColor: Colors.white,
-                        textOverflow: TextOverflow.visible,
-                        fontSize: 14.sp,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: InkWell(
+                      onTap: () {
+                        if (weatherController
+                            .pickedCity.value.name!.isNotEmpty) {
+                          weatherController.getCurrentWeather();
+                        }
+                      },
+                      child: Container(
+                        height: 0.05.sh,
+                        width: 0.3.sw,
+                        decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Center(
+                          child: CustomText(
+                            "Search",
+                            textColor: Colors.white,
+                            textOverflow: TextOverflow.visible,
+                            fontSize: 14.sp,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
                   SizedBox(
                     height: 0.03.sh,
                   ),
@@ -275,8 +356,7 @@ class HomePage extends StatelessWidget {
                         width: 0.03.sw,
                       ),
                       CustomText(
-                        "${weatherController
-                            .currentWeatherData.value.main!.feelsLike}°С",
+                        "${weatherController.currentWeatherData.value.main!.feelsLike}°С",
                         textColor: Colors.white,
                         textOverflow: TextOverflow.visible,
                         fontSize: 16.sp,
@@ -336,8 +416,7 @@ class HomePage extends StatelessWidget {
                         width: 0.03.sw,
                       ),
                       CustomText(
-                        "${weatherController
-                            .currentWeatherData.value.main!.humidity}%",
+                        "${weatherController.currentWeatherData.value.main!.humidity}%",
                         textColor: Colors.white,
                         textOverflow: TextOverflow.visible,
                         fontSize: 16.sp,

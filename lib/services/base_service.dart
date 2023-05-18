@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:weather_app/utils/functions.dart';
 
 
 class BaseService {
@@ -27,6 +28,8 @@ class BaseService {
         request.bodyFields = bodyFields;
       }
 
+      printOut("url ${request.url}");
+
       request.headers.addAll(headers);
       http.StreamedResponse response = await request.send();
 
@@ -36,9 +39,8 @@ class BaseService {
         return response.stream.bytesToString();
       }
     } catch (e, s) {
-      if (kDebugMode) {
-        print("Error on api $link $e $s");
-      }
+        printOut("Error on api $link $e $s");
+
     }
   }
 }
